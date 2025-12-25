@@ -61,7 +61,7 @@ class ControlGUI : public rclcpp::Node
 
     void MotorsPwmPublisher()
     {
-        // vals below 0 - spin opposite direction
+        // vals below 0 - spin in opposite direction
         romur_interfaces::msg::MotorsPwmControl msg;
         msg.motor0_pwm = motor_sliders_[0] - SLIDER_START_POS;
         msg.motor1_pwm = motor_sliders_[1] - SLIDER_START_POS;
