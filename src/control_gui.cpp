@@ -14,8 +14,22 @@ using pwm_t = int;
 class ControlGUI : public rclcpp::Node
 {
   public:
+    enum class controlMode_E
+    {
+        SLIDER = 0,
+        KEYBOARD,
+        JOY
+    };
+
     ControlGUI() : Node("control_gui")
     {
+        rcl_interfaces::msg::ParameterDescriptor desc;
+
+        desc.description =
+            "available modes: \n\tslider control - 0 [default] \n\tteleop keyboard - 1 \n\tteleop "
+            "joy - 2";
+        this->declare_parameter<int>("control_mode", 0, desc);
+
         p_subscriber_ = this->create_subscription<sensor_msgs::msg::CompressedImage>(
             "camera/image/compressed",
             10,
@@ -24,14 +38,26 @@ class ControlGUI : public rclcpp::Node
         p_publisher_ =
             this->create_publisher<romur_interfaces::msg::MotorsPwmControl>("motor_control", 10);
 
-        p_timer_ = this->create_wall_timer(std::chrono::milliseconds(10),
-                                           std::bind(&ControlGUI::MotorsPwmPublisher, this));
+        p_timer_      = this->create_wall_timer(std::chrono::milliseconds(10),
+                                           std::bind(&ControlGUI::motorsPwmPublisher, this));
+        control_mode_ = (controlMode_E)this->get_parameter("control_mode").as_int();
 
-        cv::namedWindow("ROMUR Control Panel");
-        cv::createTrackbar("Motor 0", "ROMUR Control Panel", &motor_sliders_[0], SLIDER_MAX_POS);
-        cv::createTrackbar("Motor 1", "ROMUR Control Panel", &motor_sliders_[1], SLIDER_MAX_POS);
-        cv::createTrackbar("Motor 2", "ROMUR Control Panel", &motor_sliders_[2], SLIDER_MAX_POS);
-        cv::createTrackbar("Motor 3", "ROMUR Control Panel", &motor_sliders_[3], SLIDER_MAX_POS);
+        switch (control_mode_)
+        {
+            case controlMode_E::SLIDER:
+                setupControlSlider();
+                break;
+            case controlMode_E::KEYBOARD:
+                setupControlKeyboard();
+                break;
+            case controlMode_E::JOY:
+                setupControlJoy();
+                break;
+
+            default:
+                setupControlSlider();
+                break;
+        }
     };
     ~ControlGUI() {};
 
@@ -40,10 +66,32 @@ class ControlGUI : public rclcpp::Node
     rclcpp::Publisher<romur_interfaces::msg::MotorsPwmControl>::SharedPtr p_publisher_;
     rclcpp::TimerBase::SharedPtr                                          p_timer_;
 
-    pwm_t motor_sliders_[4] = {(pwm_t)SLIDER_START_POS,
-                               (pwm_t)SLIDER_START_POS,
-                               (pwm_t)SLIDER_START_POS,
-                               (pwm_t)SLIDER_START_POS};
+    controlMode_E control_mode_;
+    pwm_t         motor_sliders_[4] = {(pwm_t)SLIDER_START_POS,
+                                       (pwm_t)SLIDER_START_POS,
+                                       (pwm_t)SLIDER_START_POS,
+                                       (pwm_t)SLIDER_START_POS};
+
+    void setupControlSlider()
+    {
+        cv::namedWindow("ROMUR Control Panel");
+        cv::createTrackbar("Motor 0", "ROMUR Control Panel", &motor_sliders_[0], SLIDER_MAX_POS);
+        cv::createTrackbar("Motor 1", "ROMUR Control Panel", &motor_sliders_[1], SLIDER_MAX_POS);
+        cv::createTrackbar("Motor 2", "ROMUR Control Panel", &motor_sliders_[2], SLIDER_MAX_POS);
+        cv::createTrackbar("Motor 3", "ROMUR Control Panel", &motor_sliders_[3], SLIDER_MAX_POS);
+    }
+
+    void setupControlKeyboard()
+    {
+        // TODO
+        RCLCPP_WARN(this->get_logger(), "Keyboard control is not implemented yet");
+    }
+
+    void setupControlJoy()
+    {
+        // TODO
+        RCLCPP_WARN(this->get_logger(), "Joy control is not implemented yet");
+    }
 
     void displayCallback(const sensor_msgs::msg::CompressedImage::SharedPtr msg)
     {
@@ -59,7 +107,7 @@ class ControlGUI : public rclcpp::Node
         }
     }
 
-    void MotorsPwmPublisher()
+    void motorsPwmPublisher()
     {
         // vals below 0 - spin in opposite direction
         romur_interfaces::msg::MotorsPwmControl msg;
