@@ -12,6 +12,7 @@
   <depend>rclcpp</depend>
   <depend>cv_bridge</depend>
   <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
   <depend>romur_interfaces</depend>
   <depend>image_transport</depend>
 

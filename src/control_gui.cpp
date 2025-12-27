@@ -2,6 +2,8 @@
 #include <opencv4/opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
+#include <sensor_msgs/msg/joy.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 #include "romur_interfaces/msg/motors_pwm_control.hpp"
 
 namespace ROMUR
@@ -10,6 +12,9 @@ constexpr int SLIDER_MAX_POS   = 200;
 constexpr int SLIDER_START_POS = SLIDER_MAX_POS / 2;
 
 using pwm_t = int;
+using control_subscriber_t =
+    std::variant<rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr,
+                 rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr>;
 
 class ControlGUI : public rclcpp::Node
 {
@@ -63,33 +68,40 @@ class ControlGUI : public rclcpp::Node
 
   private:
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr    p_subscriber_;
+    control_subscriber_t                                                  p_control_subscriber;
     rclcpp::Publisher<romur_interfaces::msg::MotorsPwmControl>::SharedPtr p_publisher_;
     rclcpp::TimerBase::SharedPtr                                          p_timer_;
 
     controlMode_E control_mode_;
-    pwm_t         motor_sliders_[4] = {(pwm_t)SLIDER_START_POS,
-                                       (pwm_t)SLIDER_START_POS,
-                                       (pwm_t)SLIDER_START_POS,
-                                       (pwm_t)SLIDER_START_POS};
+    pwm_t         motor_vals[4] = {(pwm_t)SLIDER_START_POS,
+                                   (pwm_t)SLIDER_START_POS,
+                                   (pwm_t)SLIDER_START_POS,
+                                   (pwm_t)SLIDER_START_POS};
 
     void setupControlSlider()
     {
         cv::namedWindow("ROMUR Control Panel");
-        cv::createTrackbar("Motor 0", "ROMUR Control Panel", &motor_sliders_[0], SLIDER_MAX_POS);
-        cv::createTrackbar("Motor 1", "ROMUR Control Panel", &motor_sliders_[1], SLIDER_MAX_POS);
-        cv::createTrackbar("Motor 2", "ROMUR Control Panel", &motor_sliders_[2], SLIDER_MAX_POS);
-        cv::createTrackbar("Motor 3", "ROMUR Control Panel", &motor_sliders_[3], SLIDER_MAX_POS);
+        cv::createTrackbar("Motor 0", "ROMUR Control Panel", &motor_vals[0], SLIDER_MAX_POS);
+        cv::createTrackbar("Motor 1", "ROMUR Control Panel", &motor_vals[1], SLIDER_MAX_POS);
+        cv::createTrackbar("Motor 2", "ROMUR Control Panel", &motor_vals[2], SLIDER_MAX_POS);
+        cv::createTrackbar("Motor 3", "ROMUR Control Panel", &motor_vals[3], SLIDER_MAX_POS);
     }
 
     void setupControlKeyboard()
     {
         // TODO
+        p_control_subscriber = this->create_subscription<geometry_msgs::msg::TwistStamped>(
+            "cmd_vel",
+            10,
+            std::bind(&ControlGUI::KeyboardControlCallback, this, std::placeholders::_1));
         RCLCPP_WARN(this->get_logger(), "Keyboard control is not implemented yet");
     }
 
     void setupControlJoy()
     {
         // TODO
+        p_control_subscriber = this->create_subscription<sensor_msgs::msg::Joy>(
+            "joy", 10, std::bind(&ControlGUI::JoyControlCallback, this, std::placeholders::_1));
         RCLCPP_WARN(this->get_logger(), "Joy control is not implemented yet");
     }
 
@@ -107,14 +119,35 @@ class ControlGUI : public rclcpp::Node
         }
     }
 
+    void JoyControlCallback(const sensor_msgs::msg::Joy msg)
+    {
+        motor_vals[0] = msg.axes[0] * 100;
+        motor_vals[1] = msg.axes[1] * 100;
+        motor_vals[2] = msg.axes[3] * 100;
+        motor_vals[3] = msg.axes[4] * 100;
+    }
+
+    void KeyboardControlCallback(const geometry_msgs::msg::TwistStamped msg)
+    {
+        return;
+    }
+
     void motorsPwmPublisher()
     {
         // vals below 0 - spin in opposite direction
         romur_interfaces::msg::MotorsPwmControl msg;
-        msg.motor0_pwm = motor_sliders_[0] - SLIDER_START_POS;
-        msg.motor1_pwm = motor_sliders_[1] - SLIDER_START_POS;
-        msg.motor2_pwm = motor_sliders_[2] - SLIDER_START_POS;
-        msg.motor3_pwm = motor_sliders_[3] - SLIDER_START_POS;
+        if (control_mode_ == controlMode_E::SLIDER)
+        {
+            msg.motor0_pwm = motor_vals[0] -= SLIDER_START_POS;
+            msg.motor1_pwm = motor_vals[1] -= SLIDER_START_POS;
+            msg.motor2_pwm = motor_vals[2] -= SLIDER_START_POS;
+            msg.motor3_pwm = motor_vals[3] -= SLIDER_START_POS;
+        }
+
+        msg.motor0_pwm = motor_vals[0];
+        msg.motor1_pwm = motor_vals[1];
+        msg.motor2_pwm = motor_vals[2];
+        msg.motor3_pwm = motor_vals[3];
 
         p_publisher_->publish<romur_interfaces::msg::MotorsPwmControl>(msg);
     }
