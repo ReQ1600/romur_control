@@ -99,7 +99,6 @@ class ControlGUI : public rclcpp::Node
 
     void setupControlJoy()
     {
-        // TODO
         p_control_subscriber = this->create_subscription<sensor_msgs::msg::Joy>(
             "joy", 10, std::bind(&ControlGUI::JoyControlCallback, this, std::placeholders::_1));
         RCLCPP_WARN(this->get_logger(), "Joy control is not implemented yet");
@@ -119,12 +118,22 @@ class ControlGUI : public rclcpp::Node
         }
     }
 
+    // tank controls
     void JoyControlCallback(const sensor_msgs::msg::Joy msg)
     {
-        motor_vals[0] = msg.axes[0] * 100;
-        motor_vals[1] = msg.axes[1] * 100;
-        motor_vals[2] = msg.axes[3] * 100;
-        motor_vals[3] = msg.axes[4] * 100;
+        float motor_l = msg.axes[1] + msg.axes[0];
+        float motor_r = msg.axes[1] - msg.axes[0];
+        float max_mag = std::max({1.0f, std::abs(motor_l), std::abs(motor_r)});
+
+        motor_vals[0] = motor_l / max_mag * 100;
+        motor_vals[1] = motor_r / max_mag * 100;
+
+        motor_l = msg.axes[4] + msg.axes[3];
+        motor_r = msg.axes[4] - msg.axes[3];
+        max_mag = std::max({1.0f, std::abs(motor_l), std::abs(motor_r)});
+
+        motor_vals[2] = motor_l / max_mag * 100;
+        motor_vals[3] = motor_r / max_mag * 100;
     }
 
     void KeyboardControlCallback(const geometry_msgs::msg::TwistStamped msg)
