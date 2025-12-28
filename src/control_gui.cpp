@@ -3,7 +3,7 @@
 #include <cv_bridge/cv_bridge.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/joy.hpp>
-#include <geometry_msgs/msg/twist_stamped.hpp>
+#include <geometry_msgs/msg/twist.hpp>
 #include "romur_interfaces/msg/motors_pwm_control.hpp"
 
 namespace ROMUR
@@ -13,7 +13,7 @@ constexpr int SLIDER_START_POS = SLIDER_MAX_POS / 2;
 
 using pwm_t = int;
 using control_subscriber_t =
-    std::variant<rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr,
+    std::variant<rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr,
                  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr>;
 
 class ControlGUI : public rclcpp::Node
@@ -73,13 +73,15 @@ class ControlGUI : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr                                          p_timer_;
 
     controlMode_E control_mode_;
-    pwm_t         motor_vals[4] = {(pwm_t)SLIDER_START_POS,
-                                   (pwm_t)SLIDER_START_POS,
-                                   (pwm_t)SLIDER_START_POS,
-                                   (pwm_t)SLIDER_START_POS};
+    pwm_t         motor_vals[4] = {0, 0, 0, 0};
 
     void setupControlSlider()
     {
+        motor_vals[0] = (pwm_t)SLIDER_START_POS;
+        motor_vals[1] = (pwm_t)SLIDER_START_POS;
+        motor_vals[2] = (pwm_t)SLIDER_START_POS;
+        motor_vals[3] = (pwm_t)SLIDER_START_POS;
+
         cv::namedWindow("ROMUR Control Panel");
         cv::createTrackbar("Motor 0", "ROMUR Control Panel", &motor_vals[0], SLIDER_MAX_POS);
         cv::createTrackbar("Motor 1", "ROMUR Control Panel", &motor_vals[1], SLIDER_MAX_POS);
@@ -89,19 +91,16 @@ class ControlGUI : public rclcpp::Node
 
     void setupControlKeyboard()
     {
-        // TODO
-        p_control_subscriber = this->create_subscription<geometry_msgs::msg::TwistStamped>(
+        p_control_subscriber = this->create_subscription<geometry_msgs::msg::Twist>(
             "cmd_vel",
             10,
             std::bind(&ControlGUI::KeyboardControlCallback, this, std::placeholders::_1));
-        RCLCPP_WARN(this->get_logger(), "Keyboard control is not implemented yet");
     }
 
     void setupControlJoy()
     {
         p_control_subscriber = this->create_subscription<sensor_msgs::msg::Joy>(
             "joy", 10, std::bind(&ControlGUI::JoyControlCallback, this, std::placeholders::_1));
-        RCLCPP_WARN(this->get_logger(), "Joy control is not implemented yet");
     }
 
     void displayCallback(const sensor_msgs::msg::CompressedImage::SharedPtr msg)
@@ -136,8 +135,13 @@ class ControlGUI : public rclcpp::Node
         motor_vals[3] = motor_r / max_mag * 100;
     }
 
-    void KeyboardControlCallback(const geometry_msgs::msg::TwistStamped msg)
+    // thrust lever control
+    void KeyboardControlCallback(const geometry_msgs::msg::Twist msg)
     {
+        motor_vals[0] = msg.linear.x * 100;
+        motor_vals[1] = msg.linear.y * 100;
+        motor_vals[2] = msg.linear.z * 100;
+        motor_vals[3] = msg.angular.x * 100;
         return;
     }
 
