@@ -5,7 +5,7 @@
 #include <sensor_msgs/msg/joy.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
-#include "romur_interfaces/msg/motors_pwm_control.hpp"
+#include "romur_interfaces/msg/romur_control.hpp"
 
 #define FEEDBACK_MSG_SIZE 11
 #define SIDEBAR_WIDTH     400
@@ -81,10 +81,10 @@ class ControlGUI : public rclcpp::Node
             std::bind(&ControlGUI::feedbackCallback, this, std::placeholders::_1));
 
         p_publisher_ =
-            this->create_publisher<romur_interfaces::msg::MotorsPwmControl>("motor_control", 10);
+            this->create_publisher<romur_interfaces::msg::ROMURControl>("motor_control", 10);
 
         p_timer_      = this->create_wall_timer(std::chrono::milliseconds(10),
-                                           std::bind(&ControlGUI::motorsPwmPublisher, this));
+                                           std::bind(&ControlGUI::ROMURControlPublisher, this));
         control_mode_ = (controlMode_E)this->get_parameter("control_mode").as_int();
 
         cv::namedWindow("ROMUR Control Panel");
@@ -109,14 +109,15 @@ class ControlGUI : public rclcpp::Node
     ~ControlGUI() {};
 
   private:
-    rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr    p_img_subscriber_;
-    control_subscriber_t                                                  p_control_subscriber;
-    rclcpp::Subscription<std_msgs::msg::UInt8MultiArray>::SharedPtr       p_feedback_subscriber;
-    rclcpp::Publisher<romur_interfaces::msg::MotorsPwmControl>::SharedPtr p_publisher_;
-    rclcpp::TimerBase::SharedPtr                                          p_timer_;
+    rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr p_img_subscriber_;
+    control_subscriber_t                                               p_control_subscriber;
+    rclcpp::Subscription<std_msgs::msg::UInt8MultiArray>::SharedPtr    p_feedback_subscriber;
+    rclcpp::Publisher<romur_interfaces::msg::ROMURControl>::SharedPtr  p_publisher_;
+    rclcpp::TimerBase::SharedPtr                                       p_timer_;
 
     controlMode_E        control_mode_;
     pwm_t                motor_vals[4] = {0, 0, 0, 0};
+    bool                 light_state_  = false;
     std::vector<uint8_t> feedback_data_;
     std::mutex           feedback_mutex_;
 
@@ -275,6 +276,8 @@ class ControlGUI : public rclcpp::Node
 
         motor_vals[2] = motor_l / max_mag * 100;
         motor_vals[3] = motor_r / max_mag * 100;
+
+        light_state_ = (bool)msg.buttons[3];
     }
 
     // thrust lever control
@@ -287,22 +290,24 @@ class ControlGUI : public rclcpp::Node
         return;
     }
 
-    void motorsPwmPublisher()
+    void ROMURControlPublisher()
     {
         // vals below 0 - spin in opposite direction
-        romur_interfaces::msg::MotorsPwmControl msg;
+        romur_interfaces::msg::ROMURControl msg;
         if (control_mode_ == controlMode_E::SLIDER)
         {
-            msg.motor0_pwm = motor_vals[0] -= SLIDER_START_POS;
-            msg.motor1_pwm = motor_vals[1] -= SLIDER_START_POS;
-            msg.motor2_pwm = motor_vals[2] -= SLIDER_START_POS;
-            msg.motor3_pwm = motor_vals[3] -= SLIDER_START_POS;
+            msg.motors.motor0_pwm = motor_vals[0] -= SLIDER_START_POS;
+            msg.motors.motor1_pwm = motor_vals[1] -= SLIDER_START_POS;
+            msg.motors.motor2_pwm = motor_vals[2] -= SLIDER_START_POS;
+            msg.motors.motor3_pwm = motor_vals[3] -= SLIDER_START_POS;
         }
 
-        msg.motor0_pwm = motor_vals[0];
-        msg.motor1_pwm = motor_vals[1];
-        msg.motor2_pwm = motor_vals[2];
-        msg.motor3_pwm = motor_vals[3];
+        msg.motors.motor0_pwm = motor_vals[0];
+        msg.motors.motor1_pwm = motor_vals[1];
+        msg.motors.motor2_pwm = motor_vals[2];
+        msg.motors.motor3_pwm = motor_vals[3];
+
+        msg.light.status = light_state_;
 
         p_publisher_->publish(msg);
     }
