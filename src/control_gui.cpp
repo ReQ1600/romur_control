@@ -7,6 +7,9 @@
 #include <std_msgs/msg/u_int8_multi_array.hpp>
 #include "romur_interfaces/msg/romur_control.hpp"
 
+#include <fstream>
+#include <iostream>
+
 #define FEEDBACK_MSG_SIZE 11
 #define SIDEBAR_WIDTH     400
 
@@ -51,6 +54,41 @@ typedef struct
     cv::Scalar       color;
 } feedback_element_t;
 
+class CSVWriter
+{
+  public:
+    CSVWriter() = default;
+    ~CSVWriter()
+    {
+        close();
+    };
+
+    bool open(const std::string& file_path)
+    {
+        file_.open(file_path);
+        return file_.is_open();
+    };
+
+    void close()
+    {
+        if (file_.is_open())
+            file_.close();
+    }
+
+    void write(const std::string& content)
+    {
+        if (file_.is_open())
+            file_ << content;
+    }
+    bool is_open()
+    {
+        return file_.is_open();
+    }
+
+  private:
+    std::ofstream file_;
+};
+
 class ControlGUI : public rclcpp::Node
 {
   public:
@@ -70,6 +108,9 @@ class ControlGUI : public rclcpp::Node
             "joy - 2";
         this->declare_parameter<int>("control_mode", 0, desc);
 
+        desc.description = "recording file path";
+        this->declare_parameter<std::string>("rec_path", "recording.csv", desc);
+
         p_img_subscriber_ = this->create_subscription<sensor_msgs::msg::CompressedImage>(
             "camera/image/compressed",
             10,
@@ -83,12 +124,15 @@ class ControlGUI : public rclcpp::Node
         p_publisher_ =
             this->create_publisher<romur_interfaces::msg::ROMURControl>("motor_control", 10);
 
-        p_timer_      = this->create_wall_timer(std::chrono::milliseconds(10),
+        p_timer_ = this->create_wall_timer(std::chrono::milliseconds(10),
                                            std::bind(&ControlGUI::ROMURControlPublisher, this));
-        control_mode_ = (controlMode_E)this->get_parameter("control_mode").as_int();
 
         cv::namedWindow("ROMUR Control Panel");
+        cv::createButton("Record", &ControlGUI::recordBtnOnClick, this, cv::QT_CHECKBOX, false);
 
+        recording_path_ = this->get_parameter("rec_path").as_string();
+
+        control_mode_ = (controlMode_E)this->get_parameter("control_mode").as_int();
         switch (control_mode_)
         {
             case controlMode_E::SLIDER:
@@ -120,6 +164,18 @@ class ControlGUI : public rclcpp::Node
     bool                 light_state_  = false;
     std::vector<uint8_t> feedback_data_;
     std::mutex           feedback_mutex_;
+
+    std::string recording_path_;
+    CSVWriter   writer_;
+
+    static void recordBtnOnClick(int state, void* userdata)
+    {
+        auto* self = static_cast<ControlGUI*>(userdata);
+        if (state)
+            self->writer_.open(self->recording_path_);
+        else
+            self->writer_.close();
+    }
 
     void setupControlSlider()
     {
@@ -230,8 +286,13 @@ class ControlGUI : public rclcpp::Node
             std::vector<feedback_element_t> fb_elements;
             parseFeedback(feedback, fb_elements);
 
+            std::stringstream csv_stream;
+
             for (size_t i = 0; i < fb_elements.size(); ++i)
             {
+                if (writer_.is_open())
+                    csv_stream << fb_elements[i].value << ',';
+
                 std::stringstream ss;
                 ss << fb_elements[i].name << ": " << fb_elements[i].value;
 
@@ -243,6 +304,12 @@ class ControlGUI : public rclcpp::Node
                             0.7,
                             fb_elements[i].color,
                             2);
+            }
+
+            if (writer_.is_open())
+            {
+                csv_stream << '\n';
+                writer_.write(csv_stream.str());
             }
 
             cv::imshow("ROMUR Control Panel", canvas);
