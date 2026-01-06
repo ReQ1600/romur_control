@@ -122,7 +122,7 @@ class ControlGUI : public rclcpp::Node
             std::bind(&ControlGUI::feedbackCallback, this, std::placeholders::_1));
 
         p_publisher_ =
-            this->create_publisher<romur_interfaces::msg::ROMURControl>("motor_control", 10);
+            this->create_publisher<romur_interfaces::msg::ROMURControl>("romur_control", 10);
 
         p_timer_ = this->create_wall_timer(std::chrono::milliseconds(10),
                                            std::bind(&ControlGUI::ROMURControlPublisher, this));
