@@ -263,6 +263,8 @@ class ControlGUI : public rclcpp::Node
     // tank controls
     void joyControlCallback(const sensor_msgs::msg::Joy msg)
     {
+        static bool prev_light_state = false;
+
         float motor_l = msg.axes[1] + msg.axes[0];
         float motor_r = msg.axes[1] - msg.axes[0];
         float max_mag = std::max({1.0f, std::abs(motor_l), std::abs(motor_r)});
@@ -277,7 +279,10 @@ class ControlGUI : public rclcpp::Node
         motor_vals[2] = motor_l / max_mag * 100;
         motor_vals[3] = motor_r / max_mag * 100;
 
-        light_state_ = (bool)msg.buttons[3];
+        if ((bool)msg.buttons[3] && !prev_light_state)
+            light_state_ ^= 1;
+
+        prev_light_state = (bool)msg.buttons[3];
     }
 
     // thrust lever control
@@ -287,6 +292,9 @@ class ControlGUI : public rclcpp::Node
         motor_vals[1] = msg.linear.y * 100;
         motor_vals[2] = msg.linear.z * 100;
         motor_vals[3] = msg.angular.x * 100;
+
+        light_state_ = (bool)msg.angular.y;
+
         return;
     }
 
