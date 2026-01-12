@@ -109,7 +109,7 @@ class ControlGUI : public rclcpp::Node
         desc.description =
             "available modes: \n\tslider control - 0 [default] \n\tteleop keyboard - 1 \n\tteleop "
             "joy - 2";
-        this->declare_parameter<int>("control_mode", 0, desc);
+        this->declare_parameter<int>("control_mode", 2, desc);
 
         desc.description = "recording file path";
         this->declare_parameter<std::string>("rec_path", "recording.csv", desc);

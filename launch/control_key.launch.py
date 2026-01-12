@@ -1,17 +1,11 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, LogInfo
 from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
     rec_file = LaunchConfiguration('rec_file')
     return LaunchDescription([
-        Node(
-            package='teleop_twist_keyboard',
-            executable='teleop_twist_keyboard',
-            name="key_control"
-        ),
-
         DeclareLaunchArgument(
             'rec_file',
             default_value='recording.vsc',
@@ -27,4 +21,12 @@ def generate_launch_description():
                 'rec_path': rec_file
             }]
         ),
+
+        LogInfo(msg="""
+================ TELEOP NOTICE ================
+Keyboard teleop is NOT auto-started.
+Run in another terminal:
+  ros2 run teleop_twist_keyboard teleop_twist_keyboard
+==============================================
+""")
     ])
