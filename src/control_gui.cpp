@@ -19,8 +19,16 @@
 
 namespace ROMUR
 {
+using pwm_t = int;
+using control_subscriber_t =
+    std::variant<rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr,
+                 rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr>;
+
 constexpr int SLIDER_MAX_POS   = 200;
 constexpr int SLIDER_START_POS = SLIDER_MAX_POS / 2;
+
+constexpr int8_t PWM_MIN = -100;
+constexpr int8_t PWM_MAX = 100;
 
 namespace name
 {
@@ -41,11 +49,6 @@ static const cv::Scalar WARNING = cv::Scalar(255, 204, 0);
 
 constexpr std::string_view MOTOR_STATUS[2] = {"OK", "BAD VALUE"};
 constexpr std::string_view LED_STATUS[2]   = {"OFF", "ON"};
-
-using pwm_t = int;
-using control_subscriber_t =
-    std::variant<rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr,
-                 rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr>;
 
 typedef struct
 {
@@ -160,7 +163,7 @@ class ControlGUI : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr                                       p_timer_;
 
     controlMode_E        control_mode_;
-    pwm_t                motor_vals[4] = {0, 0, 0, 0};
+    pwm_t                motor_vals[4] = {5, 5, 5, 5};
     bool                 light_state_  = false;
     std::vector<uint8_t> feedback_data_;
     std::mutex           feedback_mutex_;
@@ -377,10 +380,15 @@ class ControlGUI : public rclcpp::Node
             msg.motors.motor3_pwm = motor_vals[3] -= SLIDER_START_POS;
         }
 
-        msg.motors.motor0_pwm = motor_vals[0];
-        msg.motors.motor1_pwm = motor_vals[1];
-        msg.motors.motor2_pwm = motor_vals[2];
-        msg.motors.motor3_pwm = motor_vals[3];
+        msg.motors.motor0_pwm = motor_vals[0] + 5;
+        msg.motors.motor1_pwm = motor_vals[1] + 5;
+        msg.motors.motor2_pwm = motor_vals[2] + 5;
+        msg.motors.motor3_pwm = motor_vals[3] + 5;
+
+        msg.motors.motor0_pwm = std::clamp(msg.motors.motor0_pwm, PWM_MIN, PWM_MAX);
+        msg.motors.motor1_pwm = std::clamp(msg.motors.motor1_pwm, PWM_MIN, PWM_MAX);
+        msg.motors.motor2_pwm = std::clamp(msg.motors.motor2_pwm, PWM_MIN, PWM_MAX);
+        msg.motors.motor3_pwm = std::clamp(msg.motors.motor3_pwm, PWM_MIN, PWM_MAX);
 
         msg.light.status = light_state_;
 
