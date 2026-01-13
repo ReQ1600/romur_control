@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(romur_interfaces REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -20,6 +21,7 @@ add_executable(control_gui src/control_gui.cpp)
 ament_target_dependencies(control_gui
   rclcpp
   sensor_msgs
+  std_msgs
   geometry_msgs
   romur_interfaces
   cv_bridge
@@ -31,8 +33,17 @@ target_link_libraries(control_gui
   ${OpenCV_LIBRARIES}
 )
 
+add_executable(ascend src/ascend.cpp)
+
+ament_target_dependencies(ascend
+rclcpp
+std_msgs
+romur_interfaces
+)
+
 install(TARGETS
   control_gui
+  ascend
   DESTINATION lib/${PROJECT_NAME}
 )
 
