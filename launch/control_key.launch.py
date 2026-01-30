@@ -15,7 +15,7 @@ def generate_launch_description():
         Node(
             package='romur_control',
             executable='control_gui',
-            name='control_gui_joy',
+            name='control_gui_key',
             parameters=[{
                 'control_mode': 1,
                 'rec_path': rec_file
