@@ -30,6 +30,8 @@ constexpr int SLIDER_START_POS = SLIDER_MAX_POS / 2;
 constexpr int8_t PWM_MIN = -100;
 constexpr int8_t PWM_MAX = 100;
 
+constexpr int MODULE_DATA_AMOUNT = 7;
+
 namespace name
 {
 constexpr std::string_view MOTOR[4] = {
@@ -130,6 +132,13 @@ class ControlGUI : public rclcpp::Node
         p_timer_ = this->create_wall_timer(std::chrono::milliseconds(10),
                                            std::bind(&ControlGUI::ROMURControlPublisher, this));
 
+        /*
+            Custom communication initiation begin
+        */
+        /*
+            Custom communication initiation end
+        */
+
         cv::namedWindow("ROMUR Control Panel");
         cv::createButton("Record", &ControlGUI::recordBtnOnClick, this, cv::QT_CHECKBOX, false);
 
@@ -152,6 +161,13 @@ class ControlGUI : public rclcpp::Node
                 setupControlSlider();
                 break;
         }
+
+        /*
+            Additional functionality begin
+        */
+        /*
+            Additional functionality end
+        */
     };
     ~ControlGUI() {};
 
@@ -161,6 +177,13 @@ class ControlGUI : public rclcpp::Node
     rclcpp::Subscription<std_msgs::msg::UInt8MultiArray>::SharedPtr    p_feedback_subscriber;
     rclcpp::Publisher<romur_interfaces::msg::ROMURControl>::SharedPtr  p_publisher_;
     rclcpp::TimerBase::SharedPtr                                       p_timer_;
+
+    /*
+        Custom object declaration begin
+    */
+    /*
+        Custom object declaration end
+    */
 
     controlMode_E        control_mode_;
     pwm_t                motor_vals[4] = {5, 5, 5, 5};
@@ -217,7 +240,7 @@ class ControlGUI : public rclcpp::Node
             return;
         }
 
-        elements.resize(7);
+        elements.resize(MODULE_DATA_AMOUNT);
 
         // parsing motor statuses
         uint8_t status = feedback[0] & 0x3;
@@ -259,6 +282,13 @@ class ControlGUI : public rclcpp::Node
         elements[6].name  = name::TEMPERATURE;
         elements[6].value = std::to_string(data);
         elements[6].color = ROMUR::color::DEFAULT;
+
+        /*
+            Custom element parsing begin
+        */
+        /*
+            Custom element parsing end
+        */
     }
 
     void displayCallback(const sensor_msgs::msg::CompressedImage::SharedPtr msg)
@@ -392,8 +422,29 @@ class ControlGUI : public rclcpp::Node
 
         msg.light.status = light_state_;
 
+        /*
+            Custom module control begin
+        */
+        /*
+            Custom module control end
+        */
+
         p_publisher_->publish(msg);
     }
+
+    /*
+        Custom communication callbacks begin
+    */
+    /*
+        Custom communication callbacks end
+    */
+
+    /*
+        Custom helper functions begin
+    */
+    /*
+        Custom helper funcitons end
+    */
 };
 }  // namespace ROMUR
 
